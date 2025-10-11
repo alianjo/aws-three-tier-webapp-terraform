@@ -72,7 +72,12 @@ jobs:
       - name: Install dependencies
         working-directory: app
         if: ${{ steps.run_filter.outputs.run == 'true' }}
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Run tests
         working-directory: app
