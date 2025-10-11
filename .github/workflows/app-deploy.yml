@@ -46,7 +46,7 @@ jobs:
       contents: read
       packages: write
     if: >
-      (github.event_name == 'push' && github.ref == 'refs/heads/' + matrix.branch)
+      (github.event_name == 'push' && github.ref == format('refs/heads/{0}', matrix.branch))
       || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == matrix.env_name)
 
     steps:
