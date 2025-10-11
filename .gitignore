@@ -1,0 +1,29 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+.terraform.lock.hcl
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.npm/
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# Mac
+.DS_Store
+
+# Editor
+.idea/
+.vscode/

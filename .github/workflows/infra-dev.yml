@@ -1,0 +1,96 @@
+name: terraform-dev
+
+on:
+  push:
+    branches: ["dev"]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra-dev.yml"
+  pull_request:
+    branches: ["dev"]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra-dev.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  TF_WORKING_DIR: infra
+  TF_ENV: dev
+  TF_VARS_FILE: infra/envs/dev/terraform.tfvars
+  TF_BACKEND_CONFIG: infra/envs/dev/backend.hcl
+
+jobs:
+  terraform-plan:
+    if: github.event_name == 'pull_request'
+    name: terraform-plan
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -backend-config=${{ env.TF_BACKEND_CONFIG }}
+
+      - name: Terraform Fmt
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -var-file=${{ env.TF_VARS_FILE }} -out=tfplan.out
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: infra/tfplan.out
+
+  terraform-apply:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
+    name: terraform-apply
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -backend-config=${{ env.TF_BACKEND_CONFIG }}
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -var-file=${{ env.TF_VARS_FILE }} -auto-approve

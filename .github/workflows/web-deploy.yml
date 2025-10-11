@@ -1,0 +1,66 @@
+name: web-deploy
+
+on:
+  push:
+    branches: ["dev", "main"]
+    paths:
+      - "web/**"
+      - ".github/workflows/web-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        required: true
+        options:
+          - dev
+          - prod
+        default: dev
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - env_name: dev
+            branch: dev
+            role_secret: AWS_WEB_DEPLOY_ROLE_ARN_DEV
+            bucket_secret: STATIC_SITE_BUCKET_DEV
+            distribution_secret: CLOUDFRONT_DISTRIBUTION_ID_DEV
+          - env_name: prod
+            branch: main
+            role_secret: AWS_WEB_DEPLOY_ROLE_ARN_PROD
+            bucket_secret: STATIC_SITE_BUCKET_PROD
+            distribution_secret: CLOUDFRONT_DISTRIBUTION_ID_PROD
+    permissions:
+      id-token: write
+      contents: read
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/' + matrix.branch)
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == matrix.env_name)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[matrix.role_secret] }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync static site to S3
+        env:
+          BUCKET_NAME: ${{ secrets[matrix.bucket_secret] }}
+        run: |
+          aws s3 sync web/ s3://$BUCKET_NAME/ --delete --cache-control "max-age=3600,public"
+
+      - name: Invalidate CloudFront cache
+        env:
+          DISTRIBUTION_ID: ${{ secrets[matrix.distribution_secret] }}
+        run: |
+          aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"

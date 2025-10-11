@@ -1,0 +1,109 @@
+name: app-deploy
+
+on:
+  push:
+    branches: ["dev", "main"]
+    paths:
+      - "app/**"
+      - ".github/workflows/app-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        required: true
+        options:
+          - dev
+          - prod
+        default: dev
+
+env:
+  AWS_REGION: us-east-1
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - env_name: dev
+            branch: dev
+            role_secret: AWS_APP_DEPLOY_ROLE_ARN_DEV
+            ecr_repository: three-tier-webapp/dev/app
+            cluster_name: three-tier-webapp-dev
+            service_name: three-tier-webapp-dev-service
+            task_family: three-tier-webapp-dev
+          - env_name: prod
+            branch: main
+            role_secret: AWS_APP_DEPLOY_ROLE_ARN_PROD
+            ecr_repository: three-tier-webapp/prod/app
+            cluster_name: three-tier-webapp-prod
+            service_name: three-tier-webapp-prod-service
+            task_family: three-tier-webapp-prod
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/' + matrix.branch)
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == matrix.env_name)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Run tests
+        working-directory: app
+        run: npm test
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[matrix.role_secret] }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        working-directory: app
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:${{ env.IMAGE_TAG }}                     -t ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:${{ env.IMAGE_TAG }}
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:latest
+
+      - name: Retrieve current task definition
+        id: current-task
+        run: |
+          TASK_DEF_ARN=$(aws ecs describe-services                     --cluster ${{ matrix.cluster_name }}                     --services ${{ matrix.service_name }}                     --query 'services[0].taskDefinition'                     --output text)
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Register new task definition
+        id: register-task
+        run: |
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition ${{ steps.current-task.outputs.task_def_arn }} --query 'taskDefinition')
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          NEW_TASK_DEF=$(echo "$NEW_TASK_DEF" | jq '.containerDefinitions[0].image = "${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:${{ env.IMAGE_TAG }}"')
+          echo "$NEW_TASK_DEF" > new-task-def.json
+          aws ecs register-task-definition --cli-input-json file://new-task-def.json > register.json
+          NEW_REVISION=$(cat register.json | jq -r '.taskDefinition.taskDefinitionArn')
+          echo "task_definition_arn=$NEW_REVISION" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service                     --cluster ${{ matrix.cluster_name }}                     --service ${{ matrix.service_name }}                     --task-definition ${{ steps.register-task.outputs.task_definition_arn }}                     --force-new-deployment
+          aws ecs wait services-stable                     --cluster ${{ matrix.cluster_name }}                     --services ${{ matrix.service_name }}

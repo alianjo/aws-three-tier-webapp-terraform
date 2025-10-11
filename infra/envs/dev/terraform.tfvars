@@ -1,0 +1,11 @@
+environment          = "dev"
+aws_region           = "us-east-1"
+availability_zones   = ["us-east-1a", "us-east-1b"]
+vpc_cidr             = "10.10.0.0/16"
+public_subnet_cidrs  = ["10.10.0.0/24", "10.10.1.0/24"]
+private_subnet_cidrs = ["10.10.10.0/24", "10.10.11.0/24"]
+db_username          = "webapp"
+db_name              = "webapp_dev"
+db_engine_version    = "15.4"
+enable_bootstrap     = true
+github_repository    = "github.com/alianjo/aws-three-tier-webapp-terraform"
