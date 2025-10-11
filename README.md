@@ -28,25 +28,25 @@ This repository delivers an opinionated, production-ready AWS deployment of a th
 
 ```mermaid
 flowchart LR
-  DevRepo[GitHub Repo\n(dev & main)] --> GA[GitHub Actions Workflows]
-  GA -->|OIDC Assume Role| IAM[IAM Federated Roles]
-  GA -->|Terraform Apply| TF[IaC Provisioning]
-  GA -->|Build & Push| ECR[Amazon ECR]
-  GA -->|Sync Static Site| S3[S3 Static Site Bucket]
+  DevRepo["GitHub Repo<br/>(dev & main branches)"] --> GA[GitHub Actions Workflows]
+  GA -->|OIDC assume role| IAM[IAM Federated Roles]
+  GA -->|Terraform apply| TF[IaC Provisioning]
+  GA -->|Build & push| ECR[Amazon ECR]
+  GA -->|Sync static site| S3[Amazon S3 Static Site Bucket]
   TF --> VPC[VPC & Subnets]
   TF --> ALB[Application Load Balancer]
   TF --> ECSCluster[ECS Cluster (Fargate)]
   TF --> RDS[(Amazon RDS PostgreSQL)]
-  TF --> Secrets[Secrets Manager]
-  TF --> CF[CloudFront Distribution]
+  TF --> Secrets[AWS Secrets Manager]
+  TF --> CF[Amazon CloudFront Distribution]
   VPC --> ALB
   ALB --> ECSService[ECS Service Tasks]
-  ECSService -->|Fetch Secrets| Secrets
+  ECSService -->|Fetch secrets| Secrets
   ECSService -->|Connects| RDS
   ECR --> ECSService
-  Users -->|HTTPS| CF
-  CF -->|Origin Access| S3
-  Users -->|API Calls| ALB
+  Users[End Users] -->|HTTPS| CF
+  CF -->|Origin access| S3
+  Users -->|API calls| ALB
 ```
 
 ## Repository Layout
