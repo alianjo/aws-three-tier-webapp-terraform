@@ -45,53 +45,74 @@ jobs:
       id-token: write
       contents: read
       packages: write
-    if: ${{ (github.event_name == 'push' && github.ref_name == matrix.branch) || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == matrix.env_name) }}
 
     steps:
+      - name: Determine run target
+        id: run_filter
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_name }}" == "${{ matrix.branch }}" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "${{ matrix.env_name }}" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
       - name: Install dependencies
         working-directory: app
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: npm ci
 
       - name: Run tests
         working-directory: app
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: npm test
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         with:
           role-to-assume: ${{ secrets[matrix.role_secret] }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build Docker image
         working-directory: app
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: |
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:${{ env.IMAGE_TAG }}                     -t ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:latest .
 
       - name: Push Docker image
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: |
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:${{ env.IMAGE_TAG }}
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ matrix.ecr_repository }}:latest
 
       - name: Retrieve current task definition
         id: current-task
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: |
           TASK_DEF_ARN=$(aws ecs describe-services                     --cluster ${{ matrix.cluster_name }}                     --services ${{ matrix.service_name }}                     --query 'services[0].taskDefinition'                     --output text)
           echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
       - name: Register new task definition
         id: register-task
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: |
           TASK_DEF=$(aws ecs describe-task-definition --task-definition ${{ steps.current-task.outputs.task_def_arn }} --query 'taskDefinition')
           NEW_TASK_DEF=$(echo "$TASK_DEF" | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
@@ -102,6 +123,7 @@ jobs:
           echo "task_definition_arn=$NEW_REVISION" >> $GITHUB_OUTPUT
 
       - name: Update ECS service
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: |
           aws ecs update-service                     --cluster ${{ matrix.cluster_name }}                     --service ${{ matrix.service_name }}                     --task-definition ${{ steps.register-task.outputs.task_definition_arn }}                     --force-new-deployment
           aws ecs wait services-stable                     --cluster ${{ matrix.cluster_name }}                     --services ${{ matrix.service_name }}

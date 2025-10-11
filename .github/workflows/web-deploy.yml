@@ -39,14 +39,27 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    if: ${{ (github.event_name == 'push' && github.ref_name == matrix.branch) || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == matrix.env_name) }}
 
     steps:
+      - name: Determine run target
+        id: run_filter
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_name }}" == "${{ matrix.branch }}" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "${{ matrix.env_name }}" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         with:
           role-to-assume: ${{ secrets[matrix.role_secret] }}
           aws-region: ${{ env.AWS_REGION }}
@@ -54,11 +67,13 @@ jobs:
       - name: Sync static site to S3
         env:
           BUCKET_NAME: ${{ secrets[matrix.bucket_secret] }}
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: |
           aws s3 sync web/ s3://$BUCKET_NAME/ --delete --cache-control "max-age=3600,public"
 
       - name: Invalidate CloudFront cache
         env:
           DISTRIBUTION_ID: ${{ secrets[matrix.distribution_secret] }}
+        if: ${{ steps.run_filter.outputs.run == 'true' }}
         run: |
           aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
