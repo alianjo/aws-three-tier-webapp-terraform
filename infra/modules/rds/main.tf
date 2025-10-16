@@ -1,11 +1,6 @@
-locals {
-  name_prefix = "${var.project_name}-${var.environment}"
-}
-
 resource "random_password" "master" {
-  length           = 20
-  special          = true
-  override_characters = "!#$%&*()-_=+[]{}"
+  length  = 16
+  special = true
 }
 
 resource "aws_db_subnet_group" "this" {

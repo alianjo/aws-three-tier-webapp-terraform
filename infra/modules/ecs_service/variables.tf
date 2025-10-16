@@ -3,7 +3,8 @@ variable "project_name" {
 }
 
 variable "environment" {
-  type = string
+  description = "Environment name (e.g., dev, prod)"
+  type        = string
 }
 
 variable "cluster_name" {
@@ -15,7 +16,8 @@ variable "vpc_id" {
 }
 
 variable "subnet_ids" {
-  type = list(string)
+  description = "List of subnet IDs for the ECS service"
+  type        = list(string)
 }
 
 variable "alb_target_group_arn" {
@@ -26,14 +28,73 @@ variable "alb_security_group_id" {
   type = string
 }
 
-variable "container_port" {
-  type    = number
-  default = 3000
+variable "service_name" {
+  description = "Name of the ECS service"
+  type        = string
+  default     = "app"
+}
+
+variable "container_name" {
+  description = "Name of the container"
+  type        = string
+  default     = ""
+}
+
+variable "cluster_id" {
+  description = "The ARN of the ECS cluster"
+  type        = string
+}
+
+variable "task_definition_arn" {
+  description = "The ARN of the task definition to run"
+  type        = string
 }
 
 variable "desired_count" {
-  type    = number
-  default = 2
+  description = "The number of instances of the task to run"
+  type        = number
+  default     = 2
+}
+
+variable "security_group_ids" {
+  description = "List of security group IDs for the ECS service"
+  type        = list(string)
+}
+
+variable "tags" {
+  description = "A map of tags to add to all resources"
+  type        = map(string)
+  default     = {}
+}
+
+variable "task_cpu" {
+  description = "The number of CPU units to reserve for the task"
+  type        = string
+  default     = "256"
+}
+
+variable "task_memory" {
+  description = "The amount of memory (in MiB) to reserve for the task"
+  type        = string
+  default     = "512"
+}
+
+variable "container_port" {
+  description = "Port on which the container is listening"
+  type        = number
+  default     = 80
+}
+
+variable "host_port" {
+  description = "Port on the host to map to the container port"
+  type        = number
+  default     = 0  # 0 means random port
+}
+
+variable "log_retention_days" {
+  description = "Number of days to retain CloudWatch logs"
+  type        = number
+  default     = 30
 }
 
 variable "cpu" {
@@ -49,33 +110,4 @@ variable "memory" {
 variable "assign_public_ip" {
   type    = bool
   default = false
-}
-
-variable "db_secret_arn" {
-  type = string
-}
-
-variable "db_host" {
-  type = string
-}
-
-variable "db_name" {
-  type = string
-}
-
-variable "db_user" {
-  type = string
-}
-
-variable "ecr_repository_url" {
-  type = string
-}
-
-variable "aws_region" {
-  type = string
-}
-
-variable "tags" {
-  type    = map(string)
-  default = {}
 }

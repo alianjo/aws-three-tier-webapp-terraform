@@ -1,12 +1,4 @@
 locals {
-  name_prefix = "${var.project_name}-${var.environment}"
-  repo_ref_patterns = [
-    "repo:${var.github_repository}:ref:refs/heads/main",
-    "repo:${var.github_repository}:ref:refs/heads/dev",
-    "repo:${var.github_repository}:ref:refs/tags/*",
-    "repo:${var.github_repository}:pull_request"
-  ]
-
   role_definitions = {
     terraform = {
       description = "GitHub Actions role for Terraform operations"

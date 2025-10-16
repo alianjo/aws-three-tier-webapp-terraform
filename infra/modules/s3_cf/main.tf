@@ -8,13 +8,13 @@ locals {
 }
 
 resource "aws_s3_bucket" "this" {
-  bucket        = locals.bucket_name
+  bucket        = var.bucket_name
   force_destroy = true
 
   tags = merge(
     var.tags,
     {
-      Name = "${locals.name_prefix}-static"
+      Name = "${var.project_name}-${var.environment}-static"
     }
   )
 }
@@ -46,7 +46,7 @@ resource "aws_s3_bucket_public_access_block" "this" {
 }
 
 resource "aws_cloudfront_origin_access_identity" "oai" {
-  comment = "${locals.name_prefix} CloudFront access identity"
+  comment = "${var.project_name}-${var.environment} CloudFront access identity"
 }
 
 data "aws_iam_policy_document" "bucket" {
@@ -72,7 +72,7 @@ resource "aws_s3_bucket_policy" "this" {
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   is_ipv6_enabled     = true
-  comment             = "${locals.name_prefix} static front end"
+  comment             = "${var.project_name}-${var.environment} static front end"
   price_class         = var.price_class
   default_root_object = "index.html"
   aliases             = var.web_domain_name != null ? [var.web_domain_name] : []
@@ -121,7 +121,7 @@ resource "aws_cloudfront_distribution" "this" {
   tags = merge(
     var.tags,
     {
-      Name = "${locals.name_prefix}-distribution"
+      Name = "${var.project_name}-${var.environment}-distribution"
     }
   )
 }

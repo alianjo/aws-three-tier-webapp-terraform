@@ -1,7 +1,3 @@
-locals {
-  name_prefix = "${var.project_name}-${var.environment}"
-}
-
 resource "aws_vpc" "this" {
   cidr_block           = var.cidr_block
   enable_dns_support   = true

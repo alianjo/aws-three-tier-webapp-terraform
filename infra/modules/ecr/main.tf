@@ -1,6 +1,3 @@
-locals {
-  repository_name = "${var.project_name}/${var.environment}/app"
-}
 
 resource "aws_ecr_repository" "this" {
   name                 = locals.repository_name
