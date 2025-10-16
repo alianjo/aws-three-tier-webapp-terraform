@@ -111,3 +111,36 @@ variable "assign_public_ip" {
   type    = bool
   default = false
 }
+
+variable "db_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing database credentials"
+  type        = string
+}
+
+variable "ecr_repository_url" {
+  description = "URL of the ECR repository"
+  type        = string
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "db_host" {
+  description = "Database host endpoint"
+  type        = string
+}
+
+variable "db_user" {
+  description = "Database username"
+  type        = string
+  default     = "admin"
+}
+
+variable "db_name" {
+  description = "Database name"
+  type        = string
+  default     = "appdb"
+}

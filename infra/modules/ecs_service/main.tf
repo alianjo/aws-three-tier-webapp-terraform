@@ -11,7 +11,7 @@ resource "aws_ecs_cluster" "this" {
 }
 
 resource "aws_cloudwatch_log_group" "app" {
-  name              = "/ecs/${locals.name_prefix}"
+  name              = "/ecs/${local.name_prefix}"
   retention_in_days = 30
   tags              = var.tags
 }
@@ -29,7 +29,7 @@ data "aws_iam_policy_document" "task_assume_role" {
 }
 
 resource "aws_iam_role" "task_execution" {
-  name               = "${locals.name_prefix}-task-exec"
+  name               = "${local.name_prefix}-task-exec"
   assume_role_policy = data.aws_iam_policy_document.task_assume_role.json
   tags               = var.tags
 }
@@ -40,7 +40,7 @@ resource "aws_iam_role_policy_attachment" "task_execution" {
 }
 
 resource "aws_iam_role" "task" {
-  name               = "${locals.name_prefix}-task-role"
+  name               = "${local.name_prefix}-task-role"
   assume_role_policy = data.aws_iam_policy_document.task_assume_role.json
   tags               = var.tags
 }
@@ -68,13 +68,13 @@ data "aws_iam_policy_document" "task" {
 }
 
 resource "aws_iam_role_policy" "task" {
-  name   = "${locals.name_prefix}-task"
+  name   = "${local.name_prefix}-task"
   role   = aws_iam_role.task.id
   policy = data.aws_iam_policy_document.task.json
 }
 
 resource "aws_security_group" "tasks" {
-  name        = "${locals.name_prefix}-tasks-sg"
+  name        = "${local.name_prefix}-tasks-sg"
   description = "Allow traffic from ALB"
   vpc_id      = var.vpc_id
 
@@ -96,13 +96,13 @@ resource "aws_security_group" "tasks" {
   tags = merge(
     var.tags,
     {
-      Name = "${locals.name_prefix}-tasks-sg"
+      Name = "${local.name_prefix}-tasks-sg"
     }
   )
 }
 
 resource "aws_ecs_task_definition" "this" {
-  family                   = locals.name_prefix
+  family                   = local.name_prefix
   cpu                      = var.cpu
   memory                   = var.memory
   network_mode             = "awsvpc"
@@ -112,7 +112,7 @@ resource "aws_ecs_task_definition" "this" {
 
   container_definitions = jsonencode([
     {
-      name      = locals.container_name
+      name      = local.container_name
       image     = "${var.ecr_repository_url}:latest"
       essential = true
       portMappings = [
@@ -127,7 +127,7 @@ resource "aws_ecs_task_definition" "this" {
         options = {
           awslogs-group         = aws_cloudwatch_log_group.app.name
           awslogs-region        = var.aws_region
-          awslogs-stream-prefix = locals.container_name
+          awslogs-stream-prefix = local.container_name
         }
       }
       environment = [
@@ -156,7 +156,7 @@ resource "aws_ecs_task_definition" "this" {
 }
 
 resource "aws_ecs_service" "this" {
-  name            = "${locals.name_prefix}-service"
+  name            = "${local.name_prefix}-service"
   cluster         = aws_ecs_cluster.this.id
   task_definition = aws_ecs_task_definition.this.arn
   desired_count   = var.desired_count
@@ -172,7 +172,7 @@ resource "aws_ecs_service" "this" {
 
   load_balancer {
     target_group_arn = var.alb_target_group_arn
-    container_name   = locals.container_name
+    container_name   = local.container_name
     container_port   = var.container_port
   }
 

@@ -41,7 +41,7 @@ data "aws_iam_policy_document" "assume_role" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = locals.repo_ref_patterns
+      values   = local.repo_ref_patterns
     }
   }
 }
@@ -150,16 +150,16 @@ data "aws_iam_policy_document" "web_deploy" {
 }
 
 resource "aws_iam_role" "github" {
-  for_each           = locals.role_definitions
-  name               = "${locals.name_prefix}-${each.key}"
+  for_each           = local.role_definitions
+  name               = "${local.name_prefix}-${each.key}"
   description        = each.value.description
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
   tags               = var.tags
 }
 
 resource "aws_iam_role_policy" "inline" {
-  for_each = locals.role_definitions
-  name     = "${locals.name_prefix}-${each.key}"
+  for_each = local.role_definitions
+  name     = "${local.name_prefix}-${each.key}"
   role     = aws_iam_role.github[each.key].id
   policy   = each.value.policy
 }

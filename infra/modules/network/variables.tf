@@ -43,6 +43,12 @@ variable "database_subnets" {
   default     = ["10.0.5.0/24", "10.0.6.0/24"]
 }
 
+variable "availability_zones" {
+  description = "List of availability zones to use for subnets"
+  type        = list(string)
+  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+}
+
 variable "enable_nat_gateway" {
   description = "Enable NAT Gateway for private subnets"
   type        = bool

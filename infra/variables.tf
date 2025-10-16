@@ -55,7 +55,7 @@ variable "db_name" {
 variable "db_engine_version" {
   description = "PostgreSQL engine version."
   type        = string
-  default     = "15.4"
+  default     = "15"
 }
 
 variable "enable_bootstrap" {
@@ -67,7 +67,25 @@ variable "enable_bootstrap" {
 variable "github_repository" {
   description = "GitHub repository in owner/name format used for OIDC trust."
   type        = string
-  default     = "your-org/aws-three-tier-webapp-terraform"
+  default     = "alianjo/aws-three-tier-webapp-terraform"
+}
+
+variable "github_org" {
+  description = "GitHub organization name for OIDC trust."
+  type        = string
+  default     = "alianjo"
+}
+
+variable "github_repo" {
+  description = "GitHub repository name for OIDC trust."
+  type        = string
+  default     = "aws-three-tier-webapp-terraform"
+}
+
+variable "service_name" {
+  description = "Name of the service."
+  type        = string
+  default     = "webapp"
 }
 
 variable "web_domain_name" {

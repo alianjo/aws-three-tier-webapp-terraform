@@ -8,13 +8,13 @@ locals {
 }
 
 resource "aws_s3_bucket" "this" {
-  bucket        = var.bucket_name
+  bucket        = local.bucket_name
   force_destroy = true
 
   tags = merge(
     var.tags,
     {
-      Name = "${var.project_name}-${var.environment}-static"
+      Name = "${local.name_prefix}-static"
     }
   )
 }
@@ -79,7 +79,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   origin {
     domain_name = aws_s3_bucket.this.bucket_regional_domain_name
-    origin_id   = "s3-${locals.bucket_name}"
+    origin_id   = "s3-${local.bucket_name}"
 
     s3_origin_config {
       origin_access_identity = aws_cloudfront_origin_access_identity.oai.cloudfront_access_identity_path
@@ -89,7 +89,7 @@ resource "aws_cloudfront_distribution" "this" {
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD", "OPTIONS"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "s3-${locals.bucket_name}"
+    target_origin_id = "s3-${local.bucket_name}"
 
     forwarded_values {
       query_string = false

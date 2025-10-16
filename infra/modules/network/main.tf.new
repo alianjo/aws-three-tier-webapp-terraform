@@ -1,39 +1,12 @@
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
-  enable_dns_support   = var.enable_dns_support
-  enable_dns_hostnames = var.enable_dns_hostnames
-  tags                 = merge(local.common_tags, { Name = "${local.name_prefix}-vpc" })
-}
-
-# Update the public subnets to use local.max_azs
-resource "aws_subnet" "public" {
-  count                   = local.max_azs
-  vpc_id                  = aws_vpc.this.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone       = var.availability_zones[count.index]
-  map_public_ip_on_launch = true
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 
   tags = merge(
-    local.common_tags,
+    var.tags,
     {
-      Name = "${local.name_prefix}-public-${count.index}"
-      Tier = "public"
-    }
-  )
-}
-
-# Update the private subnets to use local.max_azs
-resource "aws_subnet" "private" {
-  count             = local.max_azs
-  vpc_id            = aws_vpc.this.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)  # Offset by 10 for private subnets
-  availability_zone = var.availability_zones[count.index]
-
-  tags = merge(
-    local.common_tags,
-    {
-      Name = "${local.name_prefix}-private-${count.index}"
-      Tier = "private"
+      Name = "${local.name_prefix}-vpc"
     }
   )
 }
@@ -42,19 +15,50 @@ resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
 
   tags = merge(
-    local.common_tags,
+    var.tags,
     {
       Name = "${local.name_prefix}-igw"
     }
   )
 }
 
-resource "aws_eip" "nat" {
-  count  = var.enable_nat_gateway ? 1 : 0
-  domain = "vpc"
+resource "aws_subnet" "public" {
+  count                   = length(var.public_subnets)
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = var.public_subnets[count.index]
+  availability_zone       = var.availability_zones[count.index % length(var.availability_zones)]
+  map_public_ip_on_launch = true
 
   tags = merge(
-    local.common_tags,
+    var.tags,
+    {
+      Name = "${local.name_prefix}-public-${count.index}"
+      Tier = "public"
+    }
+  )
+}
+
+resource "aws_subnet" "private" {
+  count             = length(var.private_subnets)
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = var.private_subnets[count.index]
+  availability_zone = var.availability_zones[count.index % length(var.availability_zones)]
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${local.name_prefix}-private-${count.index}"
+      Tier = "private"
+    }
+  )
+}
+
+resource "aws_eip" "nat" {
+  count = var.enable_nat_gateway ? 1 : 0
+  vpc   = true
+
+  tags = merge(
+    var.tags,
     {
       Name = "${local.name_prefix}-nat-eip"
     }
@@ -69,7 +73,7 @@ resource "aws_nat_gateway" "this" {
   subnet_id     = aws_subnet.public[0].id
 
   tags = merge(
-    local.common_tags,
+    var.tags,
     {
       Name = "${local.name_prefix}-nat"
     }
@@ -87,7 +91,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = merge(
-    local.common_tags,
+    var.tags,
     {
       Name = "${local.name_prefix}-public-rt"
     }
@@ -110,7 +114,7 @@ resource "aws_route_table" "private" {
   }
 
   tags = merge(
-    local.common_tags,
+    var.tags,
     {
       Name = "${local.name_prefix}-private-rt"
     }

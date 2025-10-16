@@ -4,19 +4,19 @@ resource "random_password" "master" {
 }
 
 resource "aws_db_subnet_group" "this" {
-  name       = "${locals.name_prefix}-db-sn"
+  name       = "${local.name_prefix}-db-sn"
   subnet_ids = var.subnet_ids
 
   tags = merge(
     var.tags,
     {
-      Name = "${locals.name_prefix}-db-sn"
+      Name = "${local.name_prefix}-db-sn"
     }
   )
 }
 
 resource "aws_security_group" "db" {
-  name        = "${locals.name_prefix}-db-sg"
+  name        = "${local.name_prefix}-db-sg"
   description = "Allow PostgreSQL ingress"
   vpc_id      = var.vpc_id
 
@@ -30,7 +30,7 @@ resource "aws_security_group" "db" {
   tags = merge(
     var.tags,
     {
-      Name = "${locals.name_prefix}-db-sg"
+      Name = "${local.name_prefix}-db-sg"
     }
   )
 }
@@ -46,18 +46,18 @@ resource "aws_security_group_rule" "cidr_ingress" {
 }
 
 resource "aws_secretsmanager_secret" "db" {
-  name = "${locals.name_prefix}/database"
+  name = "${local.name_prefix}/database"
 
   tags = merge(
     var.tags,
     {
-      Name = "${locals.name_prefix}-db-secret"
+      Name = "${local.name_prefix}-db-secret"
     }
   )
 }
 
 resource "aws_db_instance" "this" {
-  identifier              = "${locals.name_prefix}-postgres"
+  identifier              = "${local.name_prefix}-postgres"
   engine                  = "postgres"
   engine_version          = var.engine_version
   instance_class          = var.instance_class
@@ -78,7 +78,7 @@ resource "aws_db_instance" "this" {
   tags = merge(
     var.tags,
     {
-      Name = "${locals.name_prefix}-postgres"
+      Name = "${local.name_prefix}-postgres"
     }
   )
 }

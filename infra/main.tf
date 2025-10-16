@@ -6,13 +6,15 @@ locals {
 }
 
 module "network" {
-  source          = "./modules/network"
-  project_name    = var.project_name
-  environment     = var.environment
-  vpc_cidr        = var.vpc_cidr
-  public_subnets  = var.public_subnet_cidrs
-  private_subnets = var.private_subnet_cidrs
-  tags            = local.tags
+  source              = "./modules/network"
+  project_name        = var.project_name
+  environment         = var.environment
+  service_name        = var.service_name
+  vpc_cidr            = var.vpc_cidr
+  public_subnets      = var.public_subnet_cidrs
+  private_subnets     = var.private_subnet_cidrs
+  availability_zones  = var.availability_zones
+  tags                = local.tags
 }
 
 module "alb" {
@@ -27,15 +29,18 @@ module "alb" {
 }
 
 module "ecr" {
-  source      = "./modules/ecr"
-  name_prefix = "${var.project_name}-${var.environment}"
-  tags        = local.tags
+  source       = "./modules/ecr"
+  project_name = var.project_name
+  environment  = var.environment
+  service_name = var.service_name
+  tags         = local.tags
 }
 
 module "rds" {
   source              = "./modules/rds"
   project_name        = var.project_name
   environment         = var.environment
+  service_name        = var.service_name
   subnet_ids          = module.network.private_subnet_ids
   vpc_id              = module.network.vpc_id
   allowed_cidr_blocks = []
@@ -49,12 +54,13 @@ module "ecs" {
   source                = "./modules/ecs_service"
   project_name          = var.project_name
   environment           = var.environment
+  service_name          = var.service_name
   vpc_id                = module.network.vpc_id
   subnet_ids            = module.network.private_subnet_ids
-  security_group_ids    = [module.alb.security_group_id]  # Using ALB security group for now
+  security_group_ids    = [module.alb.security_group_id]
   cluster_name          = "${var.project_name}-${var.environment}"
-  cluster_id            = aws_ecs_cluster.main.arn  # Reference the ECS cluster ARN
-  task_definition_arn   = ""  # This should be the ARN of an existing task definition
+  cluster_id            = ""  # Will be created by the module
+  task_definition_arn   = ""  # Will be created by the module
   desired_count         = 2
   container_port        = 3000
   cpu                   = 512
@@ -62,18 +68,16 @@ module "ecs" {
   assign_public_ip      = false
   alb_target_group_arn  = module.alb.target_group_arn
   alb_security_group_id = module.alb.security_group_id
-  tags                  = local.tags
-}
-
-# Define the ECS cluster
-resource "aws_ecs_cluster" "main" {
-  name = "${var.project_name}-${var.environment}"
   
-  setting {
-    name  = "containerInsights"
-    value = "enabled"
-  }
+  # Database configuration
+  db_secret_arn      = module.rds.secret_arn
+  db_host            = module.rds.endpoint
+  db_user            = var.db_username
+  db_name            = var.db_name
   
+  # ECR configuration
+  ecr_repository_url = module.ecr.repository_url
+  aws_region         = var.aws_region
   tags = local.tags
 }
 
@@ -87,12 +91,14 @@ module "s3_cf" {
 }
 
 module "bootstrap" {
-  count             = var.enable_bootstrap ? 1 : 0
-  source            = "./modules/bootstrap"
-  project_name      = var.project_name
-  environment       = var.environment
-  github_repository = var.github_repository
-  tags              = local.tags
+  count        = var.enable_bootstrap ? 1 : 0
+  source       = "./modules/bootstrap"
+  project_name = var.project_name
+  environment  = var.environment
+  github_org   = var.github_org
+  github_repo  = var.github_repo
+  service_name = var.service_name
+  tags         = local.tags
 }
 
 resource "aws_security_group_rule" "db_allow_ecs" {
