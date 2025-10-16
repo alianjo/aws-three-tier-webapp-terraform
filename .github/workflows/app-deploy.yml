@@ -29,14 +29,14 @@ jobs:
         include:
           - env_name: dev
             branch: dev
-            role_secret: AWS_APP_DEPLOY_ROLE_ARN_DEV
+            role_secret: AWS_ROLE_ARN
             ecr_repository: three-tier-webapp/dev/app
             cluster_name: three-tier-webapp-dev
             service_name: three-tier-webapp-dev-service
             task_family: three-tier-webapp-dev
           - env_name: prod
             branch: main
-            role_secret: AWS_APP_DEPLOY_ROLE_ARN_PROD
+            role_secret: AWS_ROLE_ARN
             ecr_repository: three-tier-webapp/prod/app
             cluster_name: three-tier-webapp-prod
             service_name: three-tier-webapp-prod-service
